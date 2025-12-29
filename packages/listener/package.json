@@ -1,0 +1,11 @@
+{
+  "name": "listener",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "cargo watch -x run",
+    "build": "cargo build --release",
+    "start": "cargo run --release",
+    "lint": "cargo clippy --all-targets --all-features -- -D warnings"
+  }
+}

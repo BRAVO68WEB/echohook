@@ -1,0 +1,70 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: echohook-echo-redis
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - echohook-network
+
+  listener:
+    build:
+      context: .
+      dockerfile: packages/listener/Dockerfile
+    container_name: echohook-echo-listener
+    ports:
+      - "8080"
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - REDIS_URL=redis://redis:6379
+      - REDIS_POOL_SIZE=10
+      - SESSION_TTL=10800
+      - MAX_REQUESTS_PER_SESSION=1000
+      - MAX_BODY_SIZE=10485760
+      - CORS_ALLOWED_ORIGINS=*
+      - LISTEN_URL=http://localhost:8080
+      - RUST_LOG=info
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - echohook-network
+    restart: unless-stopped
+
+  echo-ui:
+    build:
+      context: .
+      dockerfile: apps/echo-ui/Dockerfile
+    container_name: echohook-echo-ui
+    ports:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    depends_on:
+      - listener
+    networks:
+      - echohook-network
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+    driver: local
+
+networks:
+  echohook-network:
+    driver: bridge
+

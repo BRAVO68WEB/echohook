@@ -1,0 +1,19 @@
+{
+  "name": "webhook-echo",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0",
+    "turbo": "^2.7.2"
+  },
+  "scripts": {
+    "dev": "dotenv -- turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "packageManager": "bun@1.2.2"
+}
