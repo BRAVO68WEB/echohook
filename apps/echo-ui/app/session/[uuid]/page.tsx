@@ -36,18 +36,6 @@ export default function SessionPage() {
 
   // Auto-detect API URL: use env var, or detect from current hostname
   const getApiUrl = () => {
-    if (typeof window !== 'undefined') {
-      // Client-side: use env var or detect from current location
-      const envUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (envUrl && envUrl !== 'http://localhost:8080') {
-        return envUrl;
-      }
-      // Auto-detect: use same hostname but port 8080
-      const hostname = window.location.hostname;
-      const protocol = window.location.protocol;
-      return `${protocol}//${hostname}:8080`;
-    }
-    // Server-side fallback
     return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
   };
   
