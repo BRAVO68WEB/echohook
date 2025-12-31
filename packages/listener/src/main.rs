@@ -46,12 +46,37 @@ async fn main() -> anyhow::Result<()> {
         "Starting webhook listener server"
     );
 
-    // Initialize Redis client
-    let redis_client = RedisClient::new(&settings.redis).await.map_err(|e| {
-        eprintln!("Failed to connect to Redis at {}: {}", settings.redis.url, e);
-        e
-    })?;
-    let redis_client = Arc::new(redis_client);
+    // Initialize Redis client with retry logic
+    let mut redis_client = None;
+    let mut retries = 0;
+    const MAX_RETRIES: u32 = 10;
+    const RETRY_DELAY: u64 = 2; // seconds
+    
+    while redis_client.is_none() && retries < MAX_RETRIES {
+        match RedisClient::new(&settings.redis).await {
+            Ok(client) => {
+                info!("Successfully connected to Redis");
+                redis_client = Some(client);
+            }
+            Err(e) => {
+                retries += 1;
+                if retries >= MAX_RETRIES {
+                    eprintln!("Failed to connect to Redis at {} after {} attempts: {}", settings.redis.url, MAX_RETRIES, e);
+                    return Err(anyhow::anyhow!("Redis connection failed: {}", e));
+                }
+                eprintln!("Failed to connect to Redis (attempt {}/{}): {}. Retrying in {}s...", 
+                    retries, MAX_RETRIES, e, RETRY_DELAY);
+                tokio::time::sleep(tokio::time::Duration::from_secs(RETRY_DELAY)).await;
+            }
+        }
+    }
+    
+    let redis_client = match redis_client {
+        Some(client) => Arc::new(client),
+        None => {
+            return Err(anyhow::anyhow!("Failed to initialize Redis client after {} attempts", MAX_RETRIES));
+        }
+    };
 
     // Create shared application state
     let app_state = web::Data::new(AppState {
