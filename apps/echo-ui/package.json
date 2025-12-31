@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "country-code-to-flag-emoji": "^2.1.0",
+    "ioredis": "^5.4.1",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "ogl": "^1.0.11",

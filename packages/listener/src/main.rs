@@ -8,7 +8,7 @@ mod sse;
 use actix_cors::Cors;
 use actix_web::{http::Method, web, App, HttpServer};
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 use tracing_actix_web::TracingLogger;
 
 use crate::config::Settings;
@@ -77,6 +77,14 @@ async fn main() -> anyhow::Result<()> {
             return Err(anyhow::anyhow!("Failed to initialize Redis client after {} attempts", MAX_RETRIES));
         }
     };
+
+    // Store API URL in Redis for frontend discovery
+    let api_url = settings.server.listen_url.clone();
+    if let Err(e) = redis_client.set_api_url(&api_url).await {
+        warn!("Failed to store API URL in Redis: {}", e);
+    } else {
+        info!(api_url = %api_url, "Stored API URL in Redis for frontend discovery");
+    }
 
     // Create shared application state
     let app_state = web::Data::new(AppState {

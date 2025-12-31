@@ -42,17 +42,19 @@ export default function RequestList({
   ingestionUrlBase,
 }: RequestListProps) {
   const [filter, setFilter] = useState('');
-  const [apiUrl, setApiUrl] = useState<string>('http://localhost:8080');
+  const [apiUrl, setApiUrl] = useState<string>('');
 
   useEffect(() => {
     const fetchApiConfig = async () => {
       try {
         const response = await fetch('/api/config');
         const config = await response.json();
-        setApiUrl(config.apiUrl);
+        if (config.apiUrl) {
+          setApiUrl(config.apiUrl);
+        }
       } catch (error) {
-        console.error('Failed to fetch API config, using auto-detection:', error);
-        setApiUrl('http://localhost:8080');
+        console.error('Failed to fetch API config from Redis:', error);
+        // Don't set fallback - will use ingestionUrlBase if apiUrl is empty
       }
     };
     fetchApiConfig();
@@ -149,12 +151,23 @@ export default function RequestList({
                 <Copy className="w-4 h-4" />
               </button>
               <button
-                onClick={() => {
-                  const url = apiUrl;
-                  fetch(url + '/i/' + ingestionUrlBase?.split('/').pop() || '', {
-                    method: 'POST',
-                    body: '{"name": "John", "email": "john@example.com"}',
-                  });
+                onClick={async () => {
+                  if (!apiUrl) {
+                    alert('Backend API URL not configured');
+                    return;
+                  }
+                  const sessionId = ingestionUrlBase?.split('/').pop() || '';
+                  try {
+                    await fetch(`${apiUrl}/i/${sessionId}`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: '{"name": "John", "email": "john@example.com"}',
+                    });
+                  } catch (error) {
+                    console.error('Test request failed:', error);
+                  }
                 }}
                 className="px-3 py-1 text-xs border border-zinc-300 dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
               >

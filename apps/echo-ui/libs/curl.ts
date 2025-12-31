@@ -1,5 +1,3 @@
-import { getApiUrlSync } from './apiUrl';
-
 export const constructCURL = ({
     method,
     path,
@@ -15,8 +13,11 @@ export const constructCURL = ({
     body: string | object | null;
     apiUrl?: string;
 }) => {
-    // Use provided apiUrl, or detect from window.location using consistent logic
-    const baseUrl = apiUrl || getApiUrlSync();
+    // apiUrl must be provided - no fallback to avoid localhost
+    if (!apiUrl) {
+        throw new Error('API URL is required to construct CURL command');
+    }
+    const baseUrl = apiUrl;
     
     // Construct base URL
     let url = `${baseUrl}${path}`;

@@ -23,8 +23,6 @@ export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
-  const [apiUrl, setApiUrl] = useState<string>('http://localhost:8080');
-
   useEffect(() => {
     // Load recent sessions from localStorage
     const stored = localStorage.getItem('webhook_sessions');
@@ -39,27 +37,11 @@ export default function Home() {
     setRecentSessions(recentSessions.slice(0, 10)); // Last 10 sessions
   }, []);
 
-  // Fetch API URL from server-side config (works with Dokploy runtime env vars)
-  useEffect(() => {
-    const fetchApiConfig = async () => {
-      try {
-        const { getApiUrl } = await import('../libs/apiUrl');
-        const url = await getApiUrl();
-        setApiUrl(url);
-      } catch (error) {
-        console.error('Failed to fetch API config, using auto-detection:', error);
-        const { getApiUrlSync } = await import('../libs/apiUrl');
-        setApiUrl(getApiUrlSync());
-      }
-    };
-    
-    fetchApiConfig();
-  }, []);
-
   const createSession = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${apiUrl}/c`, {
+      // Use proxy route instead of direct backend call
+      const response = await fetch('/api/proxy/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

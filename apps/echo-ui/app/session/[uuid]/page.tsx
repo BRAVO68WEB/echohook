@@ -33,9 +33,9 @@ export default function SessionPage() {
   const [error, setError] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>('');
-  const [apiUrl, setApiUrl] = useState<string>('http://localhost:8080');
+  const [apiUrl, setApiUrl] = useState<string>('');
 
-  // Fetch API URL from server-side config (works with Dokploy runtime env vars)
+  // Fetch API URL from server-side config (for display purposes only)
   useEffect(() => {
     const fetchApiConfig = async () => {
       try {
@@ -43,9 +43,8 @@ export default function SessionPage() {
         const url = await getApiUrl();
         setApiUrl(url);
       } catch (error) {
-        console.error('Failed to fetch API config, using auto-detection:', error);
-        const { getApiUrlSync } = await import('../../../libs/apiUrl');
-        setApiUrl(getApiUrlSync());
+        console.error('Failed to fetch API config:', error);
+        // Don't set a fallback - proxy routes will handle errors
       }
     };
     
@@ -56,7 +55,8 @@ export default function SessionPage() {
   useEffect(() => {
     const fetchRequests = async () => {
       try {
-        const response = await fetch(`${apiUrl}/r/${sessionId}?limit=100`);
+        // Use proxy route instead of direct backend call
+        const response = await fetch(`/api/proxy/requests/${sessionId}?limit=100`);
         if (!response.ok) {
           if (response.status === 404) {
             setError('Session not found or expired');
@@ -92,7 +92,7 @@ export default function SessionPage() {
     if (sessionId) {
       fetchRequests();
     }
-  }, [sessionId, apiUrl]);
+  }, [sessionId]);
 
   // Update time remaining
   useEffect(() => {
@@ -136,7 +136,8 @@ export default function SessionPage() {
         eventSource.close();
       }
 
-      eventSource = new EventSource(`${apiUrl}/s/${sessionId}`);
+      // Use proxy route instead of direct backend call
+      eventSource = new EventSource(`/api/proxy/stream/${sessionId}`);
 
       eventSource.onopen = () => {
         setIsConnected(true);
@@ -192,7 +193,7 @@ export default function SessionPage() {
         eventSource.close();
       }
     };
-  }, [sessionId, apiUrl]);
+  }, [sessionId]);
 
   if (error && requests.length === 0) {
     return (
@@ -205,7 +206,8 @@ export default function SessionPage() {
     );
   }
 
-  const ingestionUrl = `${apiUrl}/i/${sessionId}`;
+  // Build ingestion URL - use apiUrl if available, otherwise show placeholder
+  const ingestionUrl = apiUrl ? `${apiUrl}/i/${sessionId}` : `/i/${sessionId}`;
 
   function createNewSession(): void {
     router.push(`/`);

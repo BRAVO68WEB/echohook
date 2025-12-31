@@ -53,10 +53,12 @@ services:
       - "3000"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080}
-      - API_URL=${API_URL:-${NEXT_PUBLIC_API_URL:-http://localhost:8080}}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-}
+      - API_URL=${API_URL:-}
     depends_on:
       - listener
+      - redis
     networks:
       - echohook-network
     restart: unless-stopped

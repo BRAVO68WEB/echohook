@@ -1,9 +1,8 @@
 /**
- * Get the API URL with consistent fallback logic
- * Works with Dokploy runtime environment variables
+ * Get the API URL from Redis via server-side config endpoint
+ * Always reads from Redis - no localhost fallback
  */
 export const getApiUrl = async (): Promise<string> => {
-  // Try to fetch from server-side config endpoint
   try {
     const response = await fetch('/api/config');
     const config = await response.json();
@@ -11,35 +10,21 @@ export const getApiUrl = async (): Promise<string> => {
     if (config.apiUrl) {
       return config.apiUrl;
     }
+    
+    throw new Error('API URL not found in Redis');
   } catch (error) {
-    console.error('Failed to fetch API config:', error);
+    console.error('Failed to fetch API URL from Redis:', error);
+    throw new Error('Backend API URL not configured. Please ensure the backend is running and connected to Redis.');
   }
-  
-  // Fallback: auto-detect from current hostname
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
-    // Use same hostname but assume backend is on same origin or port 8080
-    // If frontend is on port 3000, backend is likely on 8080
-    const port = window.location.port === '3000' ? '8080' : window.location.port || '';
-    return port ? `${protocol}//${hostname}:${port}` : `${protocol}//${hostname}`;
-  }
-  
-  // Last resort fallback
-  return 'http://localhost:8080';
 };
 
 /**
  * Get API URL synchronously (for use in non-async contexts)
- * Uses window.location detection
+ * Returns empty string - should use async getApiUrl instead
  */
 export const getApiUrlSync = (): string => {
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
-    const port = window.location.port === '3000' ? '8080' : window.location.port || '';
-    return port ? `${protocol}//${hostname}:${port}` : `${protocol}//${hostname}`;
-  }
-  return 'http://localhost:8080';
+  // This should not be used - always use getApiUrl() async version
+  console.warn('getApiUrlSync() called - API URL should be fetched asynchronously from Redis');
+  return '';
 };
 

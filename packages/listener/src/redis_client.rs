@@ -301,5 +301,24 @@ impl RedisClient {
         let count: usize = conn.zcard(&index_key).await?;
         Ok(count)
     }
+
+    /// Store API URL in Redis (for frontend discovery)
+    #[instrument(skip(self))]
+    pub async fn set_api_url(&self, api_url: &str) -> AppResult<()> {
+        let mut conn = self.get_connection().await?;
+        let _: () = conn.set("config:api_url", api_url).await?;
+        // Set TTL to 24 hours, but backend will refresh it periodically
+        let _: () = conn.expire("config:api_url", 86400).await?;
+        info!(api_url = %api_url, "Stored API URL in Redis");
+        Ok(())
+    }
+
+    /// Get API URL from Redis
+    #[instrument(skip(self))]
+    pub async fn get_api_url(&self) -> AppResult<Option<String>> {
+        let mut conn = self.get_connection().await?;
+        let api_url: Option<String> = conn.get("config:api_url").await?;
+        Ok(api_url)
+    }
 }
 
