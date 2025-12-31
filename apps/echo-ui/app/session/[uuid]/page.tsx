@@ -54,9 +54,10 @@ export default function SessionPage() {
   // Fetch initial requests and set expiration
   useEffect(() => {
     const fetchRequests = async () => {
+      if (!apiUrl) return; // Wait for API URL to be loaded
+      
       try {
-        // Use proxy route instead of direct backend call
-        const response = await fetch(`/api/proxy/requests/${sessionId}?limit=100`);
+        const response = await fetch(`${apiUrl}/r/${sessionId}?limit=100`);
         if (!response.ok) {
           if (response.status === 404) {
             setError('Session not found or expired');
@@ -89,10 +90,10 @@ export default function SessionPage() {
       }
     };
 
-    if (sessionId) {
+    if (sessionId && apiUrl) {
       fetchRequests();
     }
-  }, [sessionId]);
+  }, [sessionId, apiUrl]);
 
   // Update time remaining
   useEffect(() => {
@@ -123,7 +124,7 @@ export default function SessionPage() {
 
   // SSE connection with reconnection logic
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || !apiUrl) return; // Wait for both sessionId and apiUrl
 
     let eventSource: EventSource | null = null;
     let reconnectTimeout: NodeJS.Timeout | null = null;
@@ -136,8 +137,7 @@ export default function SessionPage() {
         eventSource.close();
       }
 
-      // Use proxy route instead of direct backend call
-      eventSource = new EventSource(`/api/proxy/stream/${sessionId}`);
+      eventSource = new EventSource(`${apiUrl}/s/${sessionId}`);
 
       eventSource.onopen = () => {
         setIsConnected(true);
@@ -193,7 +193,7 @@ export default function SessionPage() {
         eventSource.close();
       }
     };
-  }, [sessionId]);
+  }, [sessionId, apiUrl]);
 
   if (error && requests.length === 0) {
     return (

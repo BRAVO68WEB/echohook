@@ -14,6 +14,7 @@ export function getRedisClient(): Redis {
         return delay;
       },
       maxRetriesPerRequest: 3,
+      db: 1
     });
 
     redis.on('error', (err) => {

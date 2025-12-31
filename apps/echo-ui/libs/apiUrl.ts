@@ -6,6 +6,8 @@ export const getApiUrl = async (): Promise<string> => {
   try {
     const response = await fetch('/api/config');
     const config = await response.json();
+
+    console.log('config', config);
     
     if (config.apiUrl) {
       return config.apiUrl;

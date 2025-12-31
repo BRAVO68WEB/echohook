@@ -1,4 +1,4 @@
-export const constructCURL = async ({
+export const constructCURL = ({
     method,
     path,
     query_params,
@@ -13,10 +13,6 @@ export const constructCURL = async ({
     body: string | object | null;
     apiUrl?: string;
 }) => {
-    const apiData = await fetch('/api/config');
-    
-    apiUrl = apiUrl || (await apiData.json()).apiUrl;
-    
     // Construct base URL
     let url = `${apiUrl}${path}`;
     

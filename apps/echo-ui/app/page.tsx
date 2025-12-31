@@ -23,6 +23,8 @@ export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
+  const [apiUrl, setApiUrl] = useState<string>('');
+
   useEffect(() => {
     // Load recent sessions from localStorage
     const stored = localStorage.getItem('webhook_sessions');
@@ -37,11 +39,31 @@ export default function Home() {
     setRecentSessions(recentSessions.slice(0, 10)); // Last 10 sessions
   }, []);
 
+  // Fetch API URL from Redis
+  useEffect(() => {
+    const fetchApiConfig = async () => {
+      try {
+        const { getApiUrl } = await import('../libs/apiUrl');
+        const url = await getApiUrl();
+        console.log('url', url);
+        setApiUrl(url);
+      } catch (error) {
+        console.error('Failed to fetch API config:', error);
+      }
+    };
+
+    fetchApiConfig();
+  }, []);
+
   const createSession = async () => {
+    if (!apiUrl) {
+      alert('Backend API URL not configured. Please wait for connection...');
+      return;
+    }
+
     setLoading(true);
     try {
-      // Use proxy route instead of direct backend call
-      const response = await fetch('/api/proxy/create', {
+      const response = await fetch(`${apiUrl}/c`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

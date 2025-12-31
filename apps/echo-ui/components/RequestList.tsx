@@ -132,16 +132,18 @@ export default function RequestList({
                 query_params: {},
                 headers: {},
                 body: '{"name": "John", "email": "john@example.com"}',
+                apiUrl: apiUrl,
               })}
             </code>
             <div className="flex items-center gap-2">
               <button
-                onClick={async () => copyToClipboard(await constructCURL({
+                onClick={() => copyToClipboard(constructCURL({
                   method: 'POST',
                   path: (ingestionUrlBase || '') + '/name',
                   query_params: {},
                   headers: {},
                   body: '{"name": "John", "email": "john@example.com"}',
+                  apiUrl: apiUrl,
                 }))}
                 className="px-3 py-1 text-xs border border-zinc-300 dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
               >
