@@ -40,15 +40,6 @@ export default function Home() {
 
   // Auto-detect API URL: use env var, or detect from current hostname
   const getApiUrl = () => {
-    if (typeof window !== 'undefined') {
-      const envUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (envUrl && envUrl !== 'http://localhost:8080') {
-        return envUrl;
-      }
-      const hostname = window.location.hostname;
-      const protocol = window.location.protocol;
-      return `${protocol}//${hostname}:8080`;
-    }
     return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
   };
 
