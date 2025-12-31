@@ -124,9 +124,10 @@ export default function RequestList({
           <p className="text-zinc-500 dark:text-zinc-400 text-center text-sm">
             No requests captured yet. Send a webhook to the URL above.
           </p>
-          <div className="text-zinc-500 dark:text-zinc-400 text-center text-sm flex flex-col items-center justify-center gap-2">
-            Example CURL command:
-            <code className="text-sm font-mono text-zinc-600 dark:text-zinc-400 truncate bg-zinc-100 dark:bg-zinc-900 p-2 rounded-md overflow-x-auto">{constructCURL({
+            <div className="text-zinc-500 dark:text-zinc-400 text-center text-sm flex flex-col items-center justify-center gap-2">
+              Example CURL command:
+              {/* Word wrap the CURL command */}
+              <code className="text-sm font-mono text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-900 p-2 rounded-md whitespace-pre-wrap break-words w-full">{constructCURL({
                 method: 'POST',
                 path: (ingestionUrlBase || '') + '/name',
                 query_params: {},
@@ -145,7 +146,7 @@ export default function RequestList({
                   body: '{"name": "John", "email": "john@example.com"}',
                   apiUrl: apiUrl,
                 }))}
-                className="px-3 py-1 text-xs border border-zinc-300 dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                className="px-3 py-1 text-xs border border-zinc-300 dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2 wrap-break-word"
               >
                 Copy
                 <Copy className="w-4 h-4" />
