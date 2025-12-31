@@ -39,28 +39,13 @@ export default function SessionPage() {
   useEffect(() => {
     const fetchApiConfig = async () => {
       try {
-        const response = await fetch('/api/config');
-        const config = await response.json();
-        
-        if (config.apiUrl) {
-          setApiUrl(config.apiUrl);
-          return;
-        }
-        
-        // Fallback: auto-detect from current hostname
-        if (typeof window !== 'undefined') {
-          const hostname = window.location.hostname;
-          const protocol = window.location.protocol;
-          setApiUrl(`${protocol}//${hostname}`);
-        }
+        const { getApiUrl } = await import('../../../libs/apiUrl');
+        const url = await getApiUrl();
+        setApiUrl(url);
       } catch (error) {
         console.error('Failed to fetch API config, using auto-detection:', error);
-        // Fallback: auto-detect from current hostname
-        if (typeof window !== 'undefined') {
-          const hostname = window.location.hostname;
-          const protocol = window.location.protocol;
-          setApiUrl(`${protocol}//${hostname}`);
-        }
+        const { getApiUrlSync } = await import('../../../libs/apiUrl');
+        setApiUrl(getApiUrlSync());
       }
     };
     
@@ -317,7 +302,7 @@ export default function SessionPage() {
         {/* Right Panel - Request Details */}
         <div className="w-full lg:w-1/2 flex flex-col min-h-0 overflow-hidden">
           {selectedRequest ? (
-            <RequestDetails request={selectedRequest} />
+            <RequestDetails request={selectedRequest} apiUrl={apiUrl} />
           ) : (
             <div className="flex-1 flex items-center justify-center p-8">
               <p className="text-zinc-500 dark:text-zinc-400">

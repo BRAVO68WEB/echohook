@@ -20,11 +20,12 @@ interface WebhookRequest {
 
 interface RequestDetailsProps {
   request: WebhookRequest;
+  apiUrl?: string;
 }
 
 type Tab = 'headers' | 'body' | 'raw' | 'query';
 
-export default function RequestDetails({ request }: RequestDetailsProps) {
+export default function RequestDetails({ request, apiUrl }: RequestDetailsProps) {
   const [activeTab, setActiveTab] = useState<Tab>('headers');
   const [prettyPrint, setPrettyPrint] = useState(true);
   const [ipCountry, setIpCountry] = useState<string | undefined>(undefined);
@@ -90,6 +91,7 @@ export default function RequestDetails({ request }: RequestDetailsProps) {
               query_params: request.query_params,
               headers: request.headers,
               body: request.body,
+              apiUrl,
             }))}
             className="px-3 py-1 text-sm border border-zinc-300 dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
           >

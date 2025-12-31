@@ -43,28 +43,13 @@ export default function Home() {
   useEffect(() => {
     const fetchApiConfig = async () => {
       try {
-        const response = await fetch('/api/config');
-        const config = await response.json();
-        
-        if (config.apiUrl) {
-          setApiUrl(config.apiUrl);
-          return;
-        }
-        
-        // Fallback: auto-detect from current hostname
-        if (typeof window !== 'undefined') {
-          const hostname = window.location.hostname;
-          const protocol = window.location.protocol;
-          setApiUrl(`${protocol}//${hostname}`);
-        }
+        const { getApiUrl } = await import('../libs/apiUrl');
+        const url = await getApiUrl();
+        setApiUrl(url);
       } catch (error) {
         console.error('Failed to fetch API config, using auto-detection:', error);
-        // Fallback: auto-detect from current hostname
-        if (typeof window !== 'undefined') {
-          const hostname = window.location.hostname;
-          const protocol = window.location.protocol;
-          setApiUrl(`${protocol}//${hostname}`);
-        }
+        const { getApiUrlSync } = await import('../libs/apiUrl');
+        setApiUrl(getApiUrlSync());
       }
     };
     

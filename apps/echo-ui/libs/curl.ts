@@ -1,20 +1,25 @@
+import { getApiUrlSync } from './apiUrl';
+
 export const constructCURL = ({
     method,
     path,
     query_params,
     headers,
     body,
+    apiUrl,
 }: {
     method: string;
     path: string;
     query_params: Record<string, string>;
     headers: Record<string, string>;
     body: string | object | null;
+    apiUrl?: string;
 }) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    // Use provided apiUrl, or detect from window.location using consistent logic
+    const baseUrl = apiUrl || getApiUrlSync();
     
     // Construct base URL
-    let url = `${apiUrl}${path}`;
+    let url = `${baseUrl}${path}`;
     
     // Add query parameters if any
     const searchParams = new URLSearchParams();
