@@ -23,6 +23,7 @@ export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
+  const [apiUrl, setApiUrl] = useState<string>('http://localhost:8080');
 
   useEffect(() => {
     // Load recent sessions from localStorage
@@ -38,15 +39,41 @@ export default function Home() {
     setRecentSessions(recentSessions.slice(0, 10)); // Last 10 sessions
   }, []);
 
-  // Auto-detect API URL: use env var, or detect from current hostname
-  const getApiUrl = () => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-  };
+  // Fetch API URL from server-side config (works with Dokploy runtime env vars)
+  useEffect(() => {
+    const fetchApiConfig = async () => {
+      try {
+        const response = await fetch('/api/config');
+        const config = await response.json();
+        
+        if (config.apiUrl) {
+          setApiUrl(config.apiUrl);
+          return;
+        }
+        
+        // Fallback: auto-detect from current hostname
+        if (typeof window !== 'undefined') {
+          const hostname = window.location.hostname;
+          const protocol = window.location.protocol;
+          setApiUrl(`${protocol}//${hostname}`);
+        }
+      } catch (error) {
+        console.error('Failed to fetch API config, using auto-detection:', error);
+        // Fallback: auto-detect from current hostname
+        if (typeof window !== 'undefined') {
+          const hostname = window.location.hostname;
+          const protocol = window.location.protocol;
+          setApiUrl(`${protocol}//${hostname}`);
+        }
+      }
+    };
+    
+    fetchApiConfig();
+  }, []);
 
   const createSession = async () => {
     setLoading(true);
     try {
-      const apiUrl = getApiUrl();
       const response = await fetch(`${apiUrl}/c`, {
         method: 'POST',
         headers: {

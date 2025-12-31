@@ -33,13 +33,39 @@ export default function SessionPage() {
   const [error, setError] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>('');
+  const [apiUrl, setApiUrl] = useState<string>('http://localhost:8080');
 
-  // Auto-detect API URL: use env var, or detect from current hostname
-  const getApiUrl = () => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-  };
-  
-  const apiUrl = getApiUrl();
+  // Fetch API URL from server-side config (works with Dokploy runtime env vars)
+  useEffect(() => {
+    const fetchApiConfig = async () => {
+      try {
+        const response = await fetch('/api/config');
+        const config = await response.json();
+        
+        if (config.apiUrl) {
+          setApiUrl(config.apiUrl);
+          return;
+        }
+        
+        // Fallback: auto-detect from current hostname
+        if (typeof window !== 'undefined') {
+          const hostname = window.location.hostname;
+          const protocol = window.location.protocol;
+          setApiUrl(`${protocol}//${hostname}`);
+        }
+      } catch (error) {
+        console.error('Failed to fetch API config, using auto-detection:', error);
+        // Fallback: auto-detect from current hostname
+        if (typeof window !== 'undefined') {
+          const hostname = window.location.hostname;
+          const protocol = window.location.protocol;
+          setApiUrl(`${protocol}//${hostname}`);
+        }
+      }
+    };
+    
+    fetchApiConfig();
+  }, []);
 
   // Fetch initial requests and set expiration
   useEffect(() => {
