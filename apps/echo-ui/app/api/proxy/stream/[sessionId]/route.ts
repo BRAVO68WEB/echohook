@@ -3,16 +3,17 @@ import { getApiUrlFromRedis } from '../../../../../libs/redis';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
+    const { sessionId } = await params;
     const apiUrl = await getApiUrlFromRedis();
     if (!apiUrl) {
       return new Response('Backend API URL not configured', { status: 503 });
     }
 
     // Forward the SSE stream from backend
-    const backendResponse = await fetch(`${apiUrl}/s/${params.sessionId}`, {
+    const backendResponse = await fetch(`${apiUrl}/s/${sessionId}`, {
       method: 'GET',
       headers: {
         'Accept': 'text/event-stream',

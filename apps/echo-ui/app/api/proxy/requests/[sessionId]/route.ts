@@ -3,9 +3,10 @@ import { getApiUrlFromRedis } from '../../../../../libs/redis';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
+    const { sessionId } = await params;
     const apiUrl = await getApiUrlFromRedis();
     if (!apiUrl) {
       return NextResponse.json(
@@ -19,7 +20,7 @@ export async function GET(
     const offset = searchParams.get('offset') || '0';
 
     const response = await fetch(
-      `${apiUrl}/r/${params.sessionId}?limit=${limit}&offset=${offset}`,
+      `${apiUrl}/r/${sessionId}?limit=${limit}&offset=${offset}`,
       {
         method: 'GET',
         headers: {
