@@ -85,13 +85,12 @@ export default function RequestDetails({ request, apiUrl }: RequestDetailsProps)
             Request Details
           </h2>
           <button
-            onClick={() => copyToClipboard(constructCURL({
+            onClick={async () => copyToClipboard(await constructCURL({
               method: request.method,
               path: request.path,
               query_params: request.query_params,
               headers: request.headers,
               body: request.body,
-              apiUrl,
             }))}
             className="px-3 py-1 text-sm border border-zinc-300 dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
           >

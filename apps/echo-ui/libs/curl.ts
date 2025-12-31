@@ -1,4 +1,4 @@
-export const constructCURL = ({
+export const constructCURL = async ({
     method,
     path,
     query_params,
@@ -13,14 +13,12 @@ export const constructCURL = ({
     body: string | object | null;
     apiUrl?: string;
 }) => {
-    // apiUrl must be provided - no fallback to avoid localhost
-    if (!apiUrl) {
-        throw new Error('API URL is required to construct CURL command');
-    }
-    const baseUrl = apiUrl;
+    const apiData = await fetch('/api/config');
+    
+    apiUrl = apiUrl || (await apiData.json()).apiUrl;
     
     // Construct base URL
-    let url = `${baseUrl}${path}`;
+    let url = `${apiUrl}${path}`;
     
     // Add query parameters if any
     const searchParams = new URLSearchParams();
