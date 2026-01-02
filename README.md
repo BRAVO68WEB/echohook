@@ -9,6 +9,100 @@ A real-time webhook testing and inspection tool that allows developers to create
 - **Database**: Redis for temporary data persistence
 - **Protocol**: Server-Sent Events (SSE) for real-time updates
 
+### Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        User[👤 User]
+        ExternalClient[🌐 External Service/Webhook]
+    end
+
+    subgraph "Frontend - Echo UI"
+        NextJS[Next.js App<br/>Port 3000]
+        SSEClient[SSE Client]
+        RESTClient[REST API Client]
+    end
+
+    subgraph "Backend - Listener"
+        ActixWeb[Actix-web Server<br/>Port 8080]
+        Handlers[HTTP Handlers]
+        SSEService[SSE Stream Service]
+        BroadcastChannel[Broadcast Channel<br/>tokio::sync::broadcast]
+    end
+
+    subgraph "Data Layer"
+        Redis[(Redis<br/>Port 6379)]
+        Sessions[(Sessions)]
+        Requests[(Webhook Requests)]
+    end
+
+    %% User interactions
+    User -->|Create Session| NextJS
+    User -->|View Requests| NextJS
+
+    %% Frontend to Backend
+    NextJS -->|POST /c| RESTClient
+    RESTClient -->|Create Session| ActixWeb
+    NextJS -->|GET /s/session_id| SSEClient
+    SSEClient -->|SSE Stream| SSEService
+    NextJS -->|GET /r/session_id| RESTClient
+    RESTClient -->|Fetch Requests| ActixWeb
+
+    %% External webhook flow
+    ExternalClient -->|HTTP ANY /i/session_id| ActixWeb
+    ActixWeb -->|Capture Request| Handlers
+    Handlers -->|Save Request| Redis
+    Handlers -->|Broadcast| BroadcastChannel
+    BroadcastChannel -->|Real-time Update| SSEService
+    SSEService -->|SSE Events| SSEClient
+
+    %% Backend to Redis
+    ActixWeb -->|Store Session| Redis
+    ActixWeb -->|Store Request| Redis
+    ActixWeb -->|Query Requests| Redis
+
+    %% Redis data structure
+    Redis --> Sessions
+    Redis --> Requests
+
+    %% Styling
+    classDef frontend fill:#0070f3,stroke:#0051cc,color:#fff
+    classDef backend fill:#e11d48,stroke:#be123c,color:#fff
+    classDef database fill:#f59e0b,stroke:#d97706,color:#fff
+    classDef client fill:#10b981,stroke:#059669,color:#fff
+
+    class NextJS,SSEClient,RESTClient frontend
+    class ActixWeb,Handlers,SSEService,BroadcastChannel backend
+    class Redis,Sessions,Requests database
+    class User,ExternalClient client
+```
+
+### Component Interactions
+
+1. **Session Creation Flow**:
+   - User clicks "Create Session" → Frontend calls `POST /c`
+   - Backend generates UUIDv7 session ID → Stores in Redis with TTL
+   - Returns session metadata (ingestion URL, stream URL, etc.)
+
+2. **Webhook Ingestion Flow**:
+   - External service sends HTTP request to `/i/{session_id}`
+   - Backend validates session, captures request details
+   - Stores request in Redis (Hash + Sorted Set for indexing)
+   - Broadcasts request via in-memory channel for real-time delivery
+
+3. **Real-time Updates Flow**:
+   - Frontend establishes SSE connection to `/s/{session_id}`
+   - Backend subscribes to broadcast channel for that session
+   - When new request arrives, it's immediately pushed via SSE
+   - Frontend receives and displays request in real-time
+
+4. **Historical Requests Flow**:
+   - Frontend fetches paginated requests via `GET /r/{session_id}`
+   - Backend queries Redis sorted set for request IDs
+   - Retrieves full request data from Redis hashes
+   - Returns JSON array of requests
+
 ## Features
 
 - ✅ Real-time webhook capture via SSE (using in-memory broadcast channels)
@@ -23,21 +117,6 @@ A real-time webhook testing and inspection tool that allows developers to create
 - ✅ Structured logging with tracing
 - ✅ Graceful error handling
 - ✅ CORS configuration
-
-## Backend Architecture
-
-The backend follows industry best practices:
-
-```
-packages/listener/src/
-├── main.rs          # Application entry point, HTTP server setup
-├── config.rs        # Configuration management via env variables
-├── error.rs         # Structured error types with thiserror
-├── models.rs        # Data models (Session, WebhookRequest, etc.)
-├── redis_client.rs  # Redis client with connection pooling
-├── handlers.rs      # HTTP request handlers
-└── sse.rs           # SSE stream implementation
-```
 
 ### Key Design Decisions
 
@@ -217,4 +296,4 @@ RUST_LOG=info
 
 ## License
 
-MIT
+[MIT](LICENSE)

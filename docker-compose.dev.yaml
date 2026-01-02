@@ -14,7 +14,9 @@ services:
       - echohook-network
 
   listener:
-    image: ghcr.io/bravo68web/echohook/listener:latest
+    build:
+      context: .
+      dockerfile: packages/listener/Dockerfile
     container_name: echohook-echo-listener
     ports:
       - "8080"
@@ -43,7 +45,9 @@ services:
     restart: unless-stopped
 
   echo-ui:
-    image: ghcr.io/bravo68web/echohook/echo-ui:latest
+    build:
+      context: .
+      dockerfile: apps/echo-ui/Dockerfile
     container_name: echohook-echo-ui
     ports:
       - "3000"
