@@ -75,5 +75,6 @@ pub struct HealthResponse {
     pub redis: String,
     pub version: String,
     pub uptime_seconds: u64,
+    pub sse_channels: usize,
 }
 

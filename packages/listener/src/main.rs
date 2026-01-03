@@ -8,7 +8,8 @@ mod sse;
 use actix_cors::Cors;
 use actix_web::{http::Method, web, App, HttpServer};
 use std::sync::Arc;
-use tracing::{info, warn};
+use std::time::Duration;
+use tracing::{debug, error, info, warn};
 use tracing_actix_web::TracingLogger;
 
 use crate::config::Settings;
@@ -88,8 +89,53 @@ async fn main() -> anyhow::Result<()> {
 
     // Create shared application state
     let app_state = web::Data::new(AppState {
-        redis: redis_client,
+        redis: redis_client.clone(),
         settings: settings.clone(),
+    });
+
+    // Spawn background task for maintenance (SSE cleanup + Redis keepalive)
+    let maintenance_redis = redis_client.clone();
+    let maintenance_api_url = api_url.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(60)); // Every minute
+        let mut api_url_refresh_counter = 0u32;
+        
+        loop {
+            interval.tick().await;
+            
+            // Clean up stale SSE channels
+            let removed = maintenance_redis.cleanup_stale_sse_channels().await;
+            let channel_count = maintenance_redis.get_sse_channel_count().await;
+            debug!(
+                removed = removed,
+                active_channels = channel_count,
+                "Maintenance: SSE channel cleanup completed"
+            );
+            
+            // Redis keepalive ping (also verifies connection health)
+            match maintenance_redis.health_check().await {
+                Ok(true) => {
+                    debug!("Maintenance: Redis health check passed");
+                }
+                Ok(false) => {
+                    warn!("Maintenance: Redis health check returned unexpected response");
+                }
+                Err(e) => {
+                    error!("Maintenance: Redis health check failed: {}. ConnectionManager should auto-reconnect.", e);
+                }
+            }
+            
+            // Refresh API URL in Redis every 10 minutes (600 seconds / 60 = 10 iterations)
+            api_url_refresh_counter += 1;
+            if api_url_refresh_counter >= 10 {
+                api_url_refresh_counter = 0;
+                if let Err(e) = maintenance_redis.set_api_url(&maintenance_api_url).await {
+                    warn!("Maintenance: Failed to refresh API URL in Redis: {}", e);
+                } else {
+                    debug!("Maintenance: Refreshed API URL in Redis");
+                }
+            }
+        }
     });
 
     // Start HTTP server

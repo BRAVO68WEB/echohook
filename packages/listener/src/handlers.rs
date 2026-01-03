@@ -52,6 +52,7 @@ fn validate_uuid(session_id: &str) -> AppResult<Uuid> {
 #[instrument(skip(state))]
 pub async fn health_check_handler(state: web::Data<AppState>) -> AppResult<HttpResponse> {
     let redis_healthy = state.redis.health_check().await.unwrap_or(false);
+    let sse_channels = state.redis.get_sse_channel_count().await;
 
     let uptime = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -63,6 +64,7 @@ pub async fn health_check_handler(state: web::Data<AppState>) -> AppResult<HttpR
         redis: if redis_healthy { "connected" } else { "disconnected" }.to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         uptime_seconds: uptime,
+        sse_channels,
     };
 
     Ok(HttpResponse::Ok().json(response))

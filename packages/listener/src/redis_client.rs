@@ -2,7 +2,7 @@ use crate::config::RedisSettings;
 use crate::error::AppResult;
 use crate::models::{Session, WebhookRequest};
 use chrono::{DateTime, Utc};
-use redis::aio::MultiplexedConnection;
+use redis::aio::ConnectionManager;
 use redis::{AsyncCommands, Client as RedisClient2};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -13,29 +13,31 @@ use tracing::{debug, info, instrument, warn};
 const SESSION_PREFIX: &str = "session";
 const REQUEST_PREFIX: &str = "request";
 
-/// Redis client wrapper with connection pooling and pub/sub support
+/// Redis client wrapper with automatic reconnection and SSE broadcast support
 pub struct RedisClient {
-    connection: RwLock<MultiplexedConnection>,
+    /// ConnectionManager handles automatic reconnection on failures
+    connection: ConnectionManager,
     /// Broadcast channels for SSE by session_id
     sse_channels: RwLock<HashMap<String, broadcast::Sender<WebhookRequest>>>,
 }
 
 impl RedisClient {
-    /// Create a new Redis client
+    /// Create a new Redis client with automatic reconnection
     pub async fn new(settings: &RedisSettings) -> anyhow::Result<Self> {
         let client = RedisClient2::open(settings.url.as_str())?;
-        let connection = client.get_multiplexed_async_connection().await?;
+        // ConnectionManager provides automatic reconnection on connection failures
+        let connection = ConnectionManager::new(client).await?;
 
         Ok(Self {
-            connection: RwLock::new(connection),
+            connection,
             sse_channels: RwLock::new(HashMap::new()),
         })
     }
 
-    /// Get a connection from the pool
-    async fn get_connection(&self) -> AppResult<MultiplexedConnection> {
-        let conn = self.connection.read().await.clone();
-        Ok(conn)
+    /// Get a connection (ConnectionManager handles reconnection automatically)
+    fn get_connection(&self) -> ConnectionManager {
+        // ConnectionManager is Clone and handles reconnection internally
+        self.connection.clone()
     }
 
     /// Get or create a broadcast channel for a session
@@ -118,10 +120,37 @@ impl RedisClient {
         }
     }
 
+    /// Clean up all stale SSE channels (no subscribers)
+    pub async fn cleanup_stale_sse_channels(&self) -> usize {
+        let mut channels = self.sse_channels.write().await;
+        let before_count = channels.len();
+        
+        channels.retain(|session_id, sender| {
+            let receiver_count = sender.receiver_count();
+            if receiver_count == 0 {
+                debug!(session_id = %session_id, "Removing stale SSE channel");
+                false
+            } else {
+                true
+            }
+        });
+        
+        let removed = before_count - channels.len();
+        if removed > 0 {
+            info!(removed = removed, remaining = channels.len(), "Cleaned up stale SSE channels");
+        }
+        removed
+    }
+
+    /// Get count of active SSE channels (for monitoring)
+    pub async fn get_sse_channel_count(&self) -> usize {
+        self.sse_channels.read().await.len()
+    }
+
     /// Check Redis health
     #[instrument(skip(self))]
     pub async fn health_check(&self) -> AppResult<bool> {
-        let mut conn = self.get_connection().await?;
+        let mut conn = self.get_connection();
         let result: String = redis::cmd("PING").query_async(&mut conn).await?;
         Ok(result == "PONG")
     }
@@ -129,7 +158,7 @@ impl RedisClient {
     /// Create a new session
     #[instrument(skip(self))]
     pub async fn create_session(&self, session_id: &str, ttl_seconds: u64) -> AppResult<Session> {
-        let mut conn = self.get_connection().await?;
+        let mut conn = self.get_connection();
         let now = Utc::now();
         let expires_at = now + chrono::Duration::seconds(ttl_seconds as i64);
 
@@ -157,7 +186,7 @@ impl RedisClient {
     /// Get a session by ID
     #[instrument(skip(self))]
     pub async fn get_session(&self, session_id: &str) -> AppResult<Option<Session>> {
-        let mut conn = self.get_connection().await?;
+        let mut conn = self.get_connection();
         let key = format!("{}:{}", SESSION_PREFIX, session_id);
 
         let data: HashMap<String, String> = conn.hgetall(&key).await?;
@@ -176,7 +205,7 @@ impl RedisClient {
     /// Check if a session exists
     #[instrument(skip(self))]
     pub async fn session_exists(&self, session_id: &str) -> AppResult<bool> {
-        let mut conn = self.get_connection().await?;
+        let mut conn = self.get_connection();
         let key = format!("{}:{}", SESSION_PREFIX, session_id);
         let exists: bool = conn.exists(&key).await?;
         Ok(exists)
@@ -190,7 +219,7 @@ impl RedisClient {
         request: &WebhookRequest,
         ttl_seconds: u64,
     ) -> AppResult<()> {
-        let mut conn = self.get_connection().await?;
+        let mut conn = self.get_connection();
 
         let request_key = format!("{}:{}:{}", REQUEST_PREFIX, session_id, request.request_id);
         let index_key = format!("{}:{}:requests", SESSION_PREFIX, session_id);
@@ -247,7 +276,7 @@ impl RedisClient {
         limit: usize,
         offset: usize,
     ) -> AppResult<Vec<WebhookRequest>> {
-        let mut conn = self.get_connection().await?;
+        let mut conn = self.get_connection();
         let index_key = format!("{}:{}:requests", SESSION_PREFIX, session_id);
 
         // Get request IDs from sorted set (reverse order, newest first)
@@ -296,7 +325,7 @@ impl RedisClient {
     /// Get total request count for a session
     #[instrument(skip(self))]
     pub async fn get_request_count(&self, session_id: &str) -> AppResult<usize> {
-        let mut conn = self.get_connection().await?;
+        let mut conn = self.get_connection();
         let index_key = format!("{}:{}:requests", SESSION_PREFIX, session_id);
         let count: usize = conn.zcard(&index_key).await?;
         Ok(count)
@@ -305,7 +334,7 @@ impl RedisClient {
     /// Store API URL in Redis (for frontend discovery)
     #[instrument(skip(self))]
     pub async fn set_api_url(&self, api_url: &str) -> AppResult<()> {
-        let mut conn = self.get_connection().await?;
+        let mut conn = self.get_connection();
         let _: () = conn.set("config:api_url", api_url).await?;
         // Set TTL to 24 hours, but backend will refresh it periodically
         let _: () = conn.expire("config:api_url", 86400).await?;
@@ -316,7 +345,7 @@ impl RedisClient {
     /// Get API URL from Redis
     #[instrument(skip(self))]
     pub async fn get_api_url(&self) -> AppResult<Option<String>> {
-        let mut conn = self.get_connection().await?;
+        let mut conn = self.get_connection();
         let api_url: Option<String> = conn.get("config:api_url").await?;
         Ok(api_url)
     }
