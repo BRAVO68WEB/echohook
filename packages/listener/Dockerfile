@@ -1,49 +1,47 @@
-# Build stage
-FROM rust:1.92.0-alpine AS builder
+# Build stage - use nightly for edition 2024 support
+FROM rustlang/rust:nightly-slim AS builder
 
 # Install build dependencies
-RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static
+RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy workspace Cargo.toml if it exists
-COPY Cargo.toml* ./
-
-# Copy Cargo files for dependency caching
+# Copy all Cargo files
+COPY Cargo.toml Cargo.lock ./
 COPY packages/listener/Cargo.toml ./packages/listener/
-COPY Cargo.lock* ./
 
 # Create a dummy main.rs to cache dependencies
 RUN mkdir -p packages/listener/src && \
     echo "fn main() {}" > packages/listener/src/main.rs
 
 # Build dependencies (this layer will be cached)
-# Build from workspace root to handle workspace properly
 RUN cargo build --release --package listener || true
 
-# Remove dummy main.rs and copy actual source
-RUN rm -rf packages/listener/src
+# Remove dummy and cached binary, copy actual source
+RUN rm -rf packages/listener/src && \
+    rm -f /app/target/release/listener /app/target/release/deps/listener*
 COPY packages/listener/src ./packages/listener/src
 
-# Build the actual application from workspace root
+# Touch source files to ensure rebuild
+RUN touch packages/listener/src/main.rs
+
+# Build the actual application
 RUN cargo build --release --package listener
 
-# Verify binary exists
-RUN ls -la /app/target/release/listener || \
-    (echo "Binary not found! Checking alternative locations:" && \
-     find /app -name "listener" -type f 2>/dev/null || true && \
-     find /app/target -name "listener" -type f 2>/dev/null || true && \
-     exit 1)
+# Verify binary size is reasonable (should be >5MB with all deps)
+RUN ls -la /app/target/release/listener && \
+    SIZE=$(stat -c%s /app/target/release/listener) && \
+    if [ "$SIZE" -lt 5000000 ]; then echo "Binary too small ($SIZE bytes), rebuild failed"; exit 1; fi
 
 # Runtime stage
-FROM alpine:latest
+FROM debian:bookworm-slim
 
 # Install runtime dependencies
-RUN apk add --no-cache ca-certificates openssl libgcc curl
+RUN apt-get update && apt-get install -y ca-certificates libssl3 curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy the binary from builder (workspace builds to root target/)
+# Copy the binary from builder
 COPY --from=builder /app/target/release/listener /app/listener
 
 # Verify binary was copied and set execute permissions
@@ -51,8 +49,8 @@ RUN chmod +x /app/listener && \
     ls -la /app/listener
 
 # Create non-root user
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser
+RUN groupadd -g 1000 appuser && \
+    useradd -u 1000 -g appuser appuser
 
 USER appuser
 

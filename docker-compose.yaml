@@ -19,10 +19,11 @@ services:
     ports:
       - "8080"
     environment:
-      - SERVER_HOST=${SERVER_HOST:-0.0.0.0}
-      - SERVER_PORT=${SERVER_PORT:-8080}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      - REDIS_POOL_SIZE=${REDIS_POOL_SIZE:-10}
+      # Use explicit values for Docker networking
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - REDIS_URL=redis://redis:6379
+      - REDIS_POOL_SIZE=10
       - SESSION_TTL=${SESSION_TTL:-10800}
       - MAX_REQUESTS_PER_SESSION=${MAX_REQUESTS_PER_SESSION:-1000}
       - MAX_BODY_SIZE=${MAX_BODY_SIZE:-10485760}
