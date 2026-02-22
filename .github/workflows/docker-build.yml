@@ -46,8 +46,8 @@ jobs:
       - name: Build and push listener image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./packages/listener/Dockerfile
+          context: ./packages/listener
+          file: Dockerfile
           push: true
           tags: ${{ steps.meta-listener.outputs.tags }}
           labels: ${{ steps.meta-listener.outputs.labels }}
@@ -70,8 +70,8 @@ jobs:
       - name: Build and push echo-ui image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./apps/echo-ui/Dockerfile
+          context: ./apps/echo-ui
+          file: Dockerfile
           push: true
           tags: ${{ steps.meta-echo-ui.outputs.tags }}
           labels: ${{ steps.meta-echo-ui.outputs.labels }}

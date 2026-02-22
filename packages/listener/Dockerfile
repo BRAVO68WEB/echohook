@@ -7,26 +7,12 @@ RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/li
 WORKDIR /app
 
 # Copy all Cargo files
-COPY Cargo.toml Cargo.lock ./
-COPY packages/listener/Cargo.toml ./packages/listener/
-
-# Create a dummy main.rs to cache dependencies
-RUN mkdir -p packages/listener/src && \
-    echo "fn main() {}" > packages/listener/src/main.rs
-
-# Build dependencies (this layer will be cached)
-RUN cargo build --release --package listener || true
-
-# Remove dummy and cached binary, copy actual source
-RUN rm -rf packages/listener/src && \
-    rm -f /app/target/release/listener /app/target/release/deps/listener*
-COPY packages/listener/src ./packages/listener/src
-
-# Touch source files to ensure rebuild
-RUN touch packages/listener/src/main.rs
+COPY Cargo.toml ./
+COPY Cargo.lock ./
+COPY src ./src
 
 # Build the actual application
-RUN cargo build --release --package listener
+RUN cargo build --release
 
 # Verify binary size is reasonable (should be >5MB with all deps)
 RUN ls -la /app/target/release/listener && \
