@@ -47,7 +47,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./packages/listener
-          file: Dockerfile
+          file: ./packages/listener/Dockerfile
           push: true
           tags: ${{ steps.meta-listener.outputs.tags }}
           labels: ${{ steps.meta-listener.outputs.labels }}
@@ -71,7 +71,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./apps/echo-ui
-          file: Dockerfile
+          file: ./apps/echo-ui/Dockerfile
           push: true
           tags: ${{ steps.meta-echo-ui.outputs.tags }}
           labels: ${{ steps.meta-echo-ui.outputs.labels }}
